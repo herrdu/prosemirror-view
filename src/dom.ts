@@ -22,7 +22,7 @@ export const textRange = function (node: any, from?: number, to?: number) {
 // Scans forward and backward through DOM positions equivalent to the
 // given one to see if the two are in the same place (i.e. after a
 // text node vs at the end of that text node)
-export const isEquivalentPosition = function (node: any, off, targetNode, targetOff) {
+export const isEquivalentPosition = function (node: any, off: number, targetNode: any, targetOff: number) {
   return targetNode && (scanFor(node, off, targetNode, targetOff, -1) || scanFor(node, off, targetNode, targetOff, 1));
 };
 

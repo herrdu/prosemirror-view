@@ -24,7 +24,7 @@ class SelectionState {
     this.anchorNode = this.anchorOffset = this.focusNode = this.focusOffset = null;
   }
 
-  set(sel: Selection) {
+  set(sel: Selection | { anchorNode?: any; anchorOffset?: any; focusNode?: any; focusOffset?: any }) {
     this.anchorNode = sel.anchorNode;
     this.anchorOffset = sel.anchorOffset;
     this.focusNode = sel.focusNode;

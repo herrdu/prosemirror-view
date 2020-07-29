@@ -10,10 +10,12 @@ function compareObjs(a: any, b: any) {
   return true;
 }
 
-class WidgetType {
+export class WidgetType {
   spec: any;
   side: number;
   toDOM: any;
+
+  attrs?: { [key: string]: string };
 
   constructor(toDOM: any, spec: any) {
     this.spec = spec || noSpec;

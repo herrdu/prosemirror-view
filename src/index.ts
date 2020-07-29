@@ -14,7 +14,7 @@ import { initInput, destroyInput, dispatchEvent, ensureListeners } from "./input
 import { selectionToDOM, anchorInRightPlace, syncNodeSelection } from "./selection";
 import { Decoration, viewDecorations } from "./decoration";
 import browser from "./browser";
-import { Schema, Slice, Node as ProsemirrorNode } from "prosemirror-model";
+import { Schema, Slice, Node as ProsemirrorNode, Mark } from "prosemirror-model";
 import { DirectEditorProps, NodeView, ICoords, IDir } from "./types";
 import { NodeViewDesc } from "./viewdesc";
 import { DOMObserver } from "./domobserver";
@@ -87,10 +87,10 @@ export class EditorView<S extends Schema = any> {
    */
   nodeViews?: {
     [name: string]: (
-      node: ProsemirrorNode<S>,
+      node: ProsemirrorNode<S> | Mark<S>,
       view: EditorView<S>,
       getPos: (() => number) | boolean,
-      decorations: Decoration[]
+      decorations?: Decoration[]
     ) => NodeView<S>;
   } | null;
 
