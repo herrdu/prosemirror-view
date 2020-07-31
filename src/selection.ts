@@ -4,6 +4,7 @@ import browser from "./browser";
 import { selectionCollapsed, isEquivalentPosition, domIndex, isOnEdge } from "./dom";
 import { EditorView } from ".";
 import { ResolvedPos } from "prosemirror-model";
+import { NodeViewDesc } from "./viewdesc";
 
 export function selectionFromDOM(view: EditorView, origin: string) {
   let domSel = view.root.getSelection(),
@@ -43,7 +44,7 @@ export function selectionFromDOM(view: EditorView, origin: string) {
 }
 
 export function selectionToDOM(view: EditorView, force: boolean) {
-  let sel = view.state.selection;
+  let sel = view.state.selection as any;
   syncNodeSelection(view, sel);
 
   if (
@@ -65,7 +66,7 @@ export function selectionToDOM(view: EditorView, force: boolean) {
       if (!sel.$from.parent.inlineContent) resetEditableFrom = temporarilyEditableNear(view, sel.from);
       if (!sel.empty && !sel.$from.parent.inlineContent) resetEditableTo = temporarilyEditableNear(view, sel.to);
     }
-    view.docView.setSelection(anchor, head, view.root, force);
+    view.docView.setSelection(anchor, head, view.root as any, force);
     if (brokenSelectBetweenUneditable) {
       if (resetEditableFrom) resetEditable(resetEditableFrom);
       if (resetEditableTo) resetEditable(resetEditableTo);
@@ -90,8 +91,8 @@ const brokenSelectBetweenUneditable = browser.safari || (browser.chrome && brows
 
 function temporarilyEditableNear(view: EditorView, pos: number) {
   let { node, offset } = view.docView.domFromPos(pos);
-  let after = offset < node.childNodes.length ? node.childNodes[offset] : null;
-  let before = offset ? node.childNodes[offset - 1] : null;
+  let after = offset < node.childNodes.length ? (node.childNodes[offset] as HTMLDivElement) : null;
+  let before = offset ? (node.childNodes[offset - 1] as HTMLDivElement) : null;
   if (browser.safari && after && after.contentEditable == "false") return setEditable(after);
   if ((!after || after.contentEditable == "false") && (!before || before.contentEditable == "false")) {
     if (after) return setEditable(after);
@@ -156,7 +157,7 @@ function selectCursorWrapper(view: EditorView) {
 
 export function syncNodeSelection(view: EditorView, sel: Selection) {
   if (sel instanceof NodeSelection) {
-    let desc = view.docView.descAt(sel.from);
+    let desc = view.docView.descAt(sel.from) as NodeViewDesc;
     if (desc != view.lastSelectedViewDesc) {
       clearNodeSelection(view);
       if (desc) desc.selectNode();
