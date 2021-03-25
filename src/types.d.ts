@@ -1,4 +1,13 @@
-import { Mark, Schema, Node as ProsemirrorNode, ResolvedPos, DOMParser, Slice, DOMSerializer } from "prosemirror-model";
+import {
+  Mark,
+  Schema,
+  Node as ProsemirrorNode,
+  ResolvedPos,
+  DOMParser,
+  Slice,
+  DOMSerializer,
+  NodeType,
+} from "prosemirror-model";
 import { Selection, EditorState, Transaction } from "prosemirror-state";
 import { EditorView } from ".";
 import { Decoration, DecorationSet } from "./decoration";
@@ -444,3 +453,9 @@ export interface NodeView<S extends Schema = any> {
 export type ICoords = { top: number; left: number; right?: number; bottom?: number };
 
 export type IDir = "left" | "up" | "down" | "right" | "backward" | "forward";
+
+declare module "prosemirror-model" {
+  interface NodeType {
+    hasRequiredAttrs(ignore?: boolean): boolean;
+  }
+}

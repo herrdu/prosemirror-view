@@ -129,7 +129,8 @@ function normalizeSiblings(fragment: Fragment, $context: ResolvedPos) {
         if (result.length) result[result.length - 1] = closeRight(result[result.length - 1], lastWrap.length);
         let wrapped = withWrappers(node, wrap);
         result.push(wrapped);
-        match = match.matchType(wrapped.type, wrapped.attrs);
+        // XXX 之前是两个参数
+        match = match.matchType(wrapped.type);
         lastWrap = wrap;
       }
     });

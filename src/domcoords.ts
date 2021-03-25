@@ -353,22 +353,22 @@ export function coordsAtPos(view: EditorView, pos: number) {
     return rect;
   }
 
-  if (node.nodeType == 1 && !view.state.doc.resolve(pos).parent.inlineContent) {
+  if (node.nodeType == Node.ELEMENT_NODE && !view.state.doc.resolve(pos).parent.inlineContent) {
     // Return a horizontal line in block context
     let top = true,
       rect: DOMRect;
     if (offset < node.childNodes.length) {
-      let after = node.childNodes[offset];
-      if (after.nodeType == 1) rect = after.getBoundingClientRect();
+      let after = node.childNodes[offset] as HTMLElement;
+      if (after.nodeType == Node.ELEMENT_NODE) rect = after.getBoundingClientRect();
     }
     if (!rect && offset) {
-      let before = node.childNodes[offset - 1];
-      if (before.nodeType == 1) {
+      let before = node.childNodes[offset - 1] as HTMLElement;
+      if (before.nodeType == Node.ELEMENT_NODE) {
         rect = before.getBoundingClientRect();
         top = false;
       }
     }
-    return flattenH(rect || node.getBoundingClientRect(), top);
+    return flattenH(rect || (node as HTMLElement).getBoundingClientRect(), top);
   }
 
   // Not Firefox/Chrome, or not in a text node, so we have to use
@@ -379,28 +379,28 @@ export function coordsAtPos(view: EditorView, pos: number) {
   // doesn't work.
   for (let dir = -1; dir < 2; dir += 2) {
     if (dir < 0 && offset) {
-      let prev: HTMLElement,
+      let prev: Node,
         target =
-          node.nodeType == 3
+          node.nodeType == Node.TEXT_NODE
             ? textRange(node, offset - 1, offset)
-            : (prev = node.childNodes[offset - 1]).nodeType == 3
+            : (prev = node.childNodes[offset - 1]).nodeType == Node.TEXT_NODE
             ? textRange(prev)
-            : prev.nodeType == 1 && prev.nodeName != "BR"
-            ? prev
+            : prev.nodeType == Node.ELEMENT_NODE && prev.nodeName != "BR"
+            ? (prev as HTMLElement)
             : null; // BR nodes tend to only return the rectangle before them
       if (target) {
         let rect = singleRect(target, 1);
         if (rect.top < rect.bottom) return flattenV(rect, false);
       }
     } else if (dir > 0 && offset < nodeSize(node)) {
-      let next: HTMLElement,
+      let next: Node,
         target =
-          node.nodeType == 3
+          node.nodeType == Node.TEXT_NODE
             ? textRange(node, offset, offset + 1)
             : (next = node.childNodes[offset]).nodeType == 3
             ? textRange(next)
-            : next.nodeType == 1
-            ? next
+            : next.nodeType == Node.ELEMENT_NODE
+            ? (next as HTMLElement)
             : null;
       if (target) {
         let rect = singleRect(target, -1);
@@ -409,7 +409,7 @@ export function coordsAtPos(view: EditorView, pos: number) {
     }
   }
   // All else failed, just try to get a rectangle for the target node
-  return flattenV(singleRect(node.nodeType == 3 ? textRange(node) : node, 0), false);
+  return flattenV(singleRect(node.nodeType == Node.TEXT_NODE ? textRange(node) : (node as HTMLElement), 0), false);
 }
 
 function flattenV(rect: DOMRect, left: boolean) {
@@ -457,8 +457,8 @@ function endOfTextblockVertical(view: EditorView, state: EditorState, dir: strin
     let coords = coordsAtPos(view, $pos.pos);
     for (let child = dom.firstChild; child; child = child.nextSibling) {
       let boxes: any;
-      if (child.nodeType == 1) boxes = child.getClientRects();
-      else if (child.nodeType == 3) boxes = textRange(child, 0, child.nodeValue.length).getClientRects();
+      if (child.nodeType == Node.ELEMENT_NODE) boxes = (child as Element).getClientRects();
+      else if (child.nodeType == Node.TEXT_NODE) boxes = textRange(child, 0, child.nodeValue.length).getClientRects();
       else continue;
       for (let i = 0; i < boxes.length; i++) {
         let box = boxes[i];
