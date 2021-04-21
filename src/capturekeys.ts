@@ -3,6 +3,7 @@ import { Node as ProsemirrorNode } from "prosemirror-model";
 import browser from "./browser";
 import { domIndex, selectionCollapsed } from "./dom";
 import { EditorView } from ".";
+import { ViewDesc } from "./viewdesc";
 
 function moveSelectionBlock(state: EditorState, dir: number) {
   let { $anchor, $head } = state.selection;
@@ -32,7 +33,7 @@ function selectHorizontally(view: EditorView, dir: number, mods: string) {
     } else if (!(browser.mac && mods.indexOf("m") > -1)) {
       let $head = sel.$head,
         node = $head.textOffset ? null : dir < 0 ? $head.nodeBefore : $head.nodeAfter,
-        desc;
+        desc: ViewDesc;
       if (!node || node.isText) return false;
       let nodePos = dir < 0 ? $head.pos - node.nodeSize : $head.pos;
       if (!(node.isAtom || ((desc = view.docView.descAt(nodePos)) && !desc.contentDOM))) return false;

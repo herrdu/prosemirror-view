@@ -284,7 +284,7 @@ export class EditorView<S extends Schema = any> {
       ) {
         selectionToDOM(this, forceSelUpdate);
       } else {
-        syncNodeSelection(this, state.selection);
+        syncNodeSelection(this, state.selection );
         this.domObserver.setCurSelection();
       }
       this.domObserver.start();

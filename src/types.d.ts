@@ -12,6 +12,11 @@ import { Selection, EditorState, Transaction } from "prosemirror-state";
 import { EditorView } from ".";
 import { Decoration, DecorationSet } from "./decoration";
 
+export interface CustomMutationRecord {
+  type: MutationRecordType | "selection";
+  target: Node;
+}
+
 /**
  * The `spec` for a widget decoration
  */
@@ -43,6 +48,14 @@ export interface WidgetDecorationSpec {
    * of this widget, the editor view should ignore.
    */
   stopEvent?: ((event: Event) => boolean) | null;
+
+  /**
+   * When set (defaults to false), selection changes inside the
+   * widget are ignored, and don't cause ProseMirror to try and
+   * re-sync the selection with its selection state.
+   */
+  ignoreSelection?: boolean;
+  raw?: boolean;
   /**
    * When comparing decorations of this type (in order to decide
    * whether it needs to be redrawn), ProseMirror will by default
@@ -73,6 +86,11 @@ export interface InlineDecorationSpec {
    * Determines how the right side of the decoration is mapped.
    */
   inclusiveEnd?: boolean | null;
+}
+
+export interface NodeDecorationSpec {
+  raw?: boolean;
+  key?: string | null;
 }
 
 /**
@@ -433,16 +451,7 @@ export interface NodeView<S extends Schema = any> {
    * re-parse the range around the mutation, true if it can safely be
    * ignored.
    */
-  ignoreMutation?:
-    | ((
-        p:
-          | MutationRecord
-          | {
-              type: "selection";
-              target: Element;
-            }
-      ) => boolean)
-    | null;
+  ignoreMutation?: ((p: CustomMutationRecord) => boolean) | null;
   /**
    * Called when the node view is removed from the editor or the whole
    * editor is destroyed.

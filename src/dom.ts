@@ -1,4 +1,5 @@
 import browser from "./browser";
+import { ViewDesc } from "./viewdesc";
 
 export const domIndex = function (node: Node) {
   for (var index = 0; ; index++) {
@@ -7,10 +8,8 @@ export const domIndex = function (node: Node) {
   }
 };
 
-/** XXX 什么情况下才是11 呢 */
 export const parentNode = function (node: Node) {
   let parent = node.parentNode;
-  // XXX 修改过 原来是 11
   return parent && parent.nodeType == Node.DOCUMENT_FRAGMENT_NODE ? (parent as any).host : parent;
 };
 
@@ -70,8 +69,8 @@ export function isOnEdge(node: Node, offset: number, parent: Node) {
   }
 }
 
-function hasBlockDesc(dom: any) {
-  let desc: any;
+function hasBlockDesc(dom: Node) {
+  let desc: ViewDesc;
   for (let cur = dom; cur; cur = cur.parentNode) if ((desc = cur.pmViewDesc)) break;
   return desc && desc.node && desc.node.isBlock && (desc.dom == dom || desc.contentDOM == dom);
 }

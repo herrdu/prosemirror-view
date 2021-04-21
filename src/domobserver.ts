@@ -105,6 +105,7 @@ export class DOMObserver {
 
   start() {
     if (this.observer) this.observer.observe(this.view.dom, observeOptions);
+    // @ts-ignore
     if (useCharData) this.view.dom.addEventListener("DOMCharacterDataModified", this.onCharData);
     this.connectSelection();
   }
@@ -118,6 +119,7 @@ export class DOMObserver {
       }
       this.observer.disconnect();
     }
+    // @ts-ignore
     if (useCharData) this.view.dom.removeEventListener("DOMCharacterDataModified", this.onCharData);
     this.disconnectSelection();
   }
@@ -220,7 +222,7 @@ export class DOMObserver {
     }
   }
 
-  registerMutation(mut: MutationRecord, added: any[]) {
+  registerMutation(mut: MutationRecord, added: Node[]) {
     // Ignore mutations inside nodes that were already noted as inserted
     if (added.indexOf(mut.target) > -1) return null;
     let desc = this.view.docView.nearestDesc(mut.target);

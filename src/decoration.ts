@@ -1,7 +1,11 @@
-import { Node as ProsemirrorNode, Schema } from "prosemirror-model";
+import { Node as ProsemirrorNode, Schema, NodeSpec, MarkSpec } from "prosemirror-model";
 import { Mapping } from "prosemirror-transform";
 import { EditorView } from ".";
-import { WidgetDecorationSpec, DecorationAttrs, InlineDecorationSpec } from "./types";
+import { WidgetDecorationSpec, DecorationAttrs, InlineDecorationSpec, NodeDecorationSpec } from "./types";
+
+interface DecorationSetOptions {
+  onRemove?: (decorationSpec: NodeDecorationSpec | InlineDecorationSpec | WidgetDecorationSpec) => void;
+}
 
 function compareObjs(a: any, b: any) {
   if (a == b) return true;
@@ -11,19 +15,19 @@ function compareObjs(a: any, b: any) {
 }
 
 export class WidgetType {
-  spec: any;
+  spec: WidgetDecorationSpec;
   side: number;
-  toDOM: any;
+  toDOM: ((view: EditorView, getPos: () => number) => Node) | Node;
 
   attrs?: { [key: string]: string };
 
-  constructor(toDOM: any, spec: any) {
+  constructor(toDOM: ((view: EditorView, getPos: () => number) => Node) | Node, spec: WidgetDecorationSpec) {
     this.spec = spec || noSpec;
     this.side = this.spec.side || 0;
     this.toDOM = toDOM;
   }
 
-  map(mapping: { [key: string]: any }, span: { [key: string]: any }, offset: number, oldOffset: number) {
+  map(mapping: Mapping, span: Decoration, offset: number, oldOffset: number) {
     let { pos, deleted } = mapping.mapResult(span.from + oldOffset, this.side < 0 ? -1 : 1);
     return deleted ? null : new Decoration(pos - offset, pos - offset, this);
   }
@@ -32,7 +36,7 @@ export class WidgetType {
     return true;
   }
 
-  eq(other: WidgetType) {
+  eq(other: WidgetType | InlineType | NodeType) {
     return (
       this == other ||
       (other instanceof WidgetType &&
@@ -43,52 +47,50 @@ export class WidgetType {
 }
 
 class InlineType {
-  spec: any;
+  spec: InlineDecorationSpec;
   attrs: { [key: string]: string };
 
-  // 为了满足 ts 的检查
-  toDOM: any;
+  toDOM: ((view: EditorView, getPos: () => number) => Node) | Node;
 
-  constructor(attrs: { [key: string]: string }, spec: any) {
+  constructor(attrs: { [key: string]: string }, spec: InlineDecorationSpec) {
     this.spec = spec || noSpec;
     this.attrs = attrs;
   }
 
-  map(mapping: { [key: string]: any }, span: { [key: string]: any }, offset: number, oldOffset: number) {
+  map(mapping: Mapping, span: Decoration, offset: number, oldOffset: number) {
     let from = mapping.map(span.from + oldOffset, this.spec.inclusiveStart ? -1 : 1) - offset;
     let to = mapping.map(span.to + oldOffset, this.spec.inclusiveEnd ? 1 : -1) - offset;
     return from >= to ? null : new Decoration(from, to, this);
   }
 
-  valid(_: any, span: { [key: string]: any }) {
+  valid(_: any, span: Decoration) {
     return span.from < span.to;
   }
 
-  eq(other: InlineType) {
+  eq(other: WidgetType | InlineType | NodeType) {
     return (
       this == other ||
       (other instanceof InlineType && compareObjs(this.attrs, other.attrs) && compareObjs(this.spec, other.spec))
     );
   }
 
-  static is(span: { [key: string]: any }) {
+  static is(span: Decoration) {
     return span.type instanceof InlineType;
   }
 }
 
 class NodeType {
-  spec: any;
+  spec: NodeDecorationSpec;
   attrs: { [key: string]: string };
 
-  // 为了满足 ts 的检查
-  toDOM: any;
+  toDOM: ((view: EditorView, getPos: () => number) => Node) | Node;
 
-  constructor(attrs: { [key: string]: string }, spec: any) {
+  constructor(attrs: { [key: string]: string }, spec: NodeDecorationSpec) {
     this.spec = spec || noSpec;
     this.attrs = attrs;
   }
 
-  map(mapping: { [key: string]: any }, span: { [key: string]: any }, offset: number, oldOffset: number) {
+  map(mapping: Mapping, span: Decoration, offset: number, oldOffset: number) {
     let from = mapping.mapResult(span.from + oldOffset, 1);
     if (from.deleted) return null;
     let to = mapping.mapResult(span.to + oldOffset, -1);
@@ -96,12 +98,12 @@ class NodeType {
     return new Decoration(from.pos - offset, to.pos - offset, this);
   }
 
-  valid(node: any, span: { [key: string]: any }) {
+  valid(node: ProsemirrorNode, span: Decoration) {
     let { index, offset } = node.content.findIndex(span.from);
     return offset == span.from && offset + node.child(index).nodeSize == span.to;
   }
 
-  eq(other: NodeType) {
+  eq(other: WidgetType | InlineType | NodeType) {
     return (
       this == other ||
       (other instanceof NodeType && compareObjs(this.attrs, other.attrs) && compareObjs(this.spec, other.spec))
@@ -112,7 +114,7 @@ class NodeType {
 // ::- Decoration objects can be provided to the view through the
 // [`decorations` prop](#view.EditorProps.decorations). They come in
 // several variants—see the static members of this class for details.
-export class Decoration<T extends object = { [key: string]: any }> {
+export class Decoration {
   /**
    * The start position of the decoration.
    */
@@ -148,7 +150,7 @@ export class Decoration<T extends object = { [key: string]: any }> {
     );
   }
 
-  map(mapping: any, offset: number, oldOffset: number) {
+  map(mapping: Mapping, offset: number, oldOffset: number) {
     return this.type.map(mapping, this, offset, oldOffset);
   }
 
@@ -205,7 +207,7 @@ export class Decoration<T extends object = { [key: string]: any }> {
     pos: number,
     toDOM: ((view: EditorView, getPos: () => number) => Node) | Node,
     spec?: T & WidgetDecorationSpec
-  ): Decoration<T & WidgetDecorationSpec> {
+  ): Decoration {
     return new Decoration(pos, pos, new WidgetType(toDOM, spec));
   }
 
@@ -231,7 +233,7 @@ export class Decoration<T extends object = { [key: string]: any }> {
     to: number,
     attrs: DecorationAttrs,
     spec?: T & InlineDecorationSpec
-  ): Decoration<T & InlineDecorationSpec> {
+  ): Decoration {
     return new Decoration(from, to, new InlineType(attrs, spec));
   }
 
@@ -249,14 +251,14 @@ export class Decoration<T extends object = { [key: string]: any }> {
     to: number,
     attrs: DecorationAttrs,
     spec?: T
-  ): Decoration<T> {
+  ): Decoration {
     return new Decoration(from, to, new NodeType(attrs, spec));
   }
 
   // :: Object
   // The spec provided when creating this decoration. Can be useful
   // if you've stored extra information in that object.
-  get spec(): T {
+  get spec() {
     return this.type.spec;
   }
 }
@@ -286,9 +288,9 @@ const none = [],
 // modified, updates create a new value.
 export class DecorationSet<S extends Schema = any> {
   local: Decoration[];
-  children: any[];
+  children: Array<number | DecorationSet>;
 
-  constructor(local?: any, children?: any) {
+  constructor(local?: Decoration[], children?: Array<number | DecorationSet>) {
     this.local = local && local.length ? local : none;
     this.children = children && children.length ? children : none;
   }
@@ -308,12 +310,12 @@ export class DecorationSet<S extends Schema = any> {
   // considered. When `predicate` isn't given, all decorations are
   // assumed to match.
   find(start?: number, end?: number, predicate?: (spec: object) => boolean) {
-    let result = [];
+    let result: Decoration[] = [];
     this.findInner(start == null ? 0 : start, end == null ? 1e9 : end, result, 0, predicate);
     return result;
   }
 
-  findInner(start: number, end: number, result: any, offset: number, predicate?: (spec: object) => boolean) {
+  findInner(start: number, end: number, result: Decoration[], offset: number, predicate?: (spec: object) => boolean) {
     for (let i = 0; i < this.local.length; i++) {
       let span = this.local[i];
       if (span.from <= end && span.to >= start && (!predicate || predicate(span.spec)))
@@ -321,8 +323,14 @@ export class DecorationSet<S extends Schema = any> {
     }
     for (let i = 0; i < this.children.length; i += 3) {
       if (this.children[i] < end && this.children[i + 1] > start) {
-        let childOff = this.children[i] + 1;
-        this.children[i + 2].findInner(start - childOff, end - childOff, result, offset + childOff, predicate);
+        let childOff = (this.children[i] as number) + 1;
+        (this.children[i + 2] as DecorationSet).findInner(
+          start - childOff,
+          end - childOff,
+          result,
+          offset + childOff,
+          predicate
+        );
       }
     }
   }
@@ -337,7 +345,7 @@ export class DecorationSet<S extends Schema = any> {
   //     When given, this function will be called for each decoration
   //     that gets dropped as a result of the mapping, passing the
   //     spec of that decoration.
-  map(mapping: Mapping, doc: ProsemirrorNode, options?: object) {
+  map(mapping: Mapping, doc: ProsemirrorNode, options?: DecorationSetOptions) {
     if (this == empty || mapping.maps.length == 0) return this;
     return this.mapInner(mapping, doc, 0, 0, options || noSpec);
   }
@@ -347,9 +355,9 @@ export class DecorationSet<S extends Schema = any> {
     node: ProsemirrorNode,
     offset: number,
     oldOffset: number,
-    options?: { [key: string]: any }
-  ) {
-    let newLocal: any;
+    options?: DecorationSetOptions
+  ): DecorationSet {
+    let newLocal: Decoration[];
     for (let i = 0; i < this.local.length; i++) {
       let mapped = this.local[i].map(mapping, offset, oldOffset);
       if (mapped && mapped.type.valid(node, mapped)) (newLocal || (newLocal = [])).push(mapped);
@@ -371,7 +379,7 @@ export class DecorationSet<S extends Schema = any> {
   }
 
   addInner(doc: ProsemirrorNode, decorations: Decoration[], offset: number) {
-    let children: any[],
+    let children: Array<number | DecorationSet>,
       childIndex = 0;
     doc.forEach((childNode, childOffset) => {
       let baseOffset = childOffset + offset,
@@ -381,7 +389,11 @@ export class DecorationSet<S extends Schema = any> {
       if (!children) children = this.children.slice();
       while (childIndex < children.length && children[childIndex] < childOffset) childIndex += 3;
       if (children[childIndex] == childOffset)
-        children[childIndex + 2] = children[childIndex + 2].addInner(childNode, found, baseOffset + 1);
+        children[childIndex + 2] = (children[childIndex + 2] as DecorationSet).addInner(
+          childNode,
+          found,
+          baseOffset + 1
+        );
       else
         children.splice(
           childIndex,
@@ -413,8 +425,8 @@ export class DecorationSet<S extends Schema = any> {
       local = this.local;
     for (let i = 0; i < children.length; i += 3) {
       let found: any,
-        from = children[i] + offset,
-        to = children[i + 1] + offset;
+        from = (children[i] as number) + offset,
+        to = (children[i + 1] as number) + offset;
       for (let j = 0, span: Decoration; j < decorations.length; j++)
         if ((span = decorations[j])) {
           if (span.from > from && span.to < to) {
@@ -424,7 +436,7 @@ export class DecorationSet<S extends Schema = any> {
         }
       if (!found) continue;
       if (children == this.children) children = this.children.slice();
-      let removed = children[i + 2].removeInner(found, from + 1);
+      let removed = (children[i + 2] as DecorationSet).removeInner(found, from + 1);
       if (removed != empty) {
         children[i + 2] = removed;
       } else {
@@ -472,7 +484,7 @@ export class DecorationSet<S extends Schema = any> {
     return child || empty;
   }
 
-  eq(other: DecorationSet) {
+  eq(other: DecorationSet | DecorationGroup) {
     if (this == other) return true;
     if (
       !(other instanceof DecorationSet) ||
@@ -485,7 +497,7 @@ export class DecorationSet<S extends Schema = any> {
       if (
         this.children[i] != other.children[i] ||
         this.children[i + 1] != other.children[i + 1] ||
-        !this.children[i + 2].eq(other.children[i + 2])
+        !(this.children[i + 2] as DecorationSet).eq(other.children[i + 2] as DecorationSet)
       )
         return false;
     return true;
@@ -524,7 +536,7 @@ export namespace DecorationSet {
 // :- An abstraction that allows the code dealing with decorations to
 // treat multiple DecorationSet objects as if it were a single object
 // with (a subset of) the same interface.
-class DecorationGroup {
+export class DecorationGroup {
   members: DecorationSet[];
   constructor(members: DecorationSet[]) {
     this.members = members;
@@ -542,7 +554,7 @@ class DecorationGroup {
     return DecorationGroup.from(found);
   }
 
-  eq(other: DecorationGroup) {
+  eq(other: DecorationSet | DecorationGroup) {
     if (!(other instanceof DecorationGroup) || other.members.length != this.members.length) return false;
     for (let i = 0; i < this.members.length; i++) if (!this.members[i].eq(other.members[i])) return false;
     return true;
@@ -687,7 +699,7 @@ function mapAndGatherRemainingDecorations(
   mapping: Mapping,
   offset: number,
   oldOffset: number,
-  options: any
+  options: DecorationSetOptions
 ) {
   // Gather all decorations from the remaining marked children
   function gather(set: DecorationSet, oldOffset: number) {
@@ -696,7 +708,8 @@ function mapAndGatherRemainingDecorations(
       if (mapped) decorations.push(mapped);
       else if (options.onRemove) options.onRemove(set.local[i].spec);
     }
-    for (let i = 0; i < set.children.length; i += 3) gather(set.children[i + 2], set.children[i] + oldOffset + 1);
+    for (let i = 0; i < set.children.length; i += 3)
+      gather(set.children[i + 2] as DecorationSet, (set.children[i] as number) + oldOffset + 1);
   }
   for (let i = 0; i < children.length; i += 3)
     if (children[i + 1] == -1) gather(children[i + 2], oldChildren[i] + oldOffset + 1);
@@ -707,8 +720,8 @@ function mapAndGatherRemainingDecorations(
 function takeSpansForNode(spans: Decoration[], node: ProsemirrorNode, offset: number) {
   if (node.isLeaf) return null;
   let end = offset + node.nodeSize,
-    found = null;
-  for (let i = 0, span; i < spans.length; i++) {
+    found: Decoration[] | null = null;
+  for (let i = 0, span: Decoration; i < spans.length; i++) {
     if ((span = spans[i]) && span.from > offset && span.to < end) {
       (found || (found = [])).push(span);
       spans[i] = null;
@@ -728,7 +741,7 @@ function withoutNulls(array: Decoration[]) {
 // is a base offset that should be subtractet from the `from` and `to`
 // positions in the spans (so that we don't have to allocate new spans
 // for recursive calls).
-function buildTree(spans: Decoration[], node: ProsemirrorNode, offset: number, options?: any) {
+function buildTree(spans: Decoration[], node: ProsemirrorNode, offset: number, options?: DecorationSetOptions) {
   let children = [],
     hasNulls = false;
   node.forEach((childNode, localStart) => {
@@ -792,7 +805,7 @@ function removeOverlap(spans: Decoration[]): Decoration[] {
   return working;
 }
 
-function insertAhead(array: any[], i: number, deco: Decoration) {
+function insertAhead(array: Decoration[], i: number, deco: Decoration) {
   while (i < array.length && byPos(deco, array[i]) > 0) i++;
   array.splice(i, 0, deco);
 }

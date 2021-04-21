@@ -16,7 +16,7 @@ function parseBetween(view: EditorView, from_: number, to_: number) {
   let { node: parent, fromOffset, toOffset, from, to } = view.docView.parseRange(from_, to_);
 
   let domSel = view.root.getSelection(),
-    find = null,
+    find: null | Array<{ node: Node; offset: number; pos?: number }> = null,
     anchor = domSel.anchorNode;
   if (anchor && view.dom.contains(anchor.nodeType == 1 ? anchor : anchor.parentNode)) {
     find = [{ node: anchor, offset: domSel.anchorOffset }];
@@ -28,7 +28,7 @@ function parseBetween(view: EditorView, from_: number, to_: number) {
     for (let off = toOffset; off > fromOffset; off--) {
       let node = parent.childNodes[off - 1],
         desc = node.pmViewDesc;
-      if (node.nodeType == "BR" && !desc) {
+      if (node.nodeName == "BR" && !desc) {
         toOffset = off;
         break;
       }

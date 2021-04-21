@@ -1,4 +1,4 @@
-import { TextSelection, NodeSelection } from "prosemirror-state";
+import { TextSelection, NodeSelection, Selection } from "prosemirror-state";
 
 import browser from "./browser";
 import { selectionCollapsed, isEquivalentPosition, domIndex, isOnEdge } from "./dom";
@@ -43,7 +43,7 @@ export function selectionFromDOM(view: EditorView, origin: string) {
   return selection;
 }
 
-export function selectionToDOM(view: EditorView, force: boolean) {
+export function selectionToDOM(view: EditorView, force?: boolean) {
   let sel = view.state.selection as any;
   syncNodeSelection(view, sel);
 
